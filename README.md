@@ -14,7 +14,8 @@ If you've ever wanted to quickly search for something that was said in a series 
 ### Server
 1. ~Pull playlist information~
 1. ~Pull video information~
-1. Pull subtitles for each video
+1. ~Pull subtitles for each video~
+1. Secondary STT method for extracting subtitles
 1. Implement basic API for front-end to access the data
 1. Figure out how to efficiently search for text across millions of subtitle entries
 ### UI
