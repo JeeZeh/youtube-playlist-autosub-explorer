@@ -1,0 +1,15 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800;900&display=swap");
+body,
+* {
+  margin: 0;
+  scroll-behavior: smooth;
+  font-family: Nunito, Geneva, Tahoma, sans-serif;
+}
+
+*:focus,
+.Collapsible {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  -ms-touch-action: manipulation;
+  touch-action: manipulation;
+}

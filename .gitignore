@@ -1,4 +1,5 @@
 node_modules
 playlist_data
+dist
 .vscode
 *.js
