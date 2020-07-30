@@ -4,6 +4,10 @@
 
 A tool for downloading and exploring YouTube's auto-captions for playlists/channels etc.
 
+It's still very rough, everything runs as a dev build/server, and only surface level optimisation/architecture
+is present. It's still enough to function though, and can handle (a little sluggishly) 2000+ video playlists 
+with at least a couple months of dialogue.
+
 ## How does it work?
 
 Using `youtube-dl`, playlist information is downloaded and auto-subtitle content for each video is pulled.

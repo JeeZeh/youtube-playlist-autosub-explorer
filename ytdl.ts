@@ -168,7 +168,7 @@ const createVideoInfoFromYtdlOutput = (output: any): VideoInfo => {
     description,
     thumbnail,
     date: upload_date,
-    duration,
+    duration: parseInt(duration),
   };
 };
 
@@ -213,7 +213,7 @@ const safeBatchYtdlInfo = async (ids: string[]): Promise<Videos> => {
   }
 
   const promiseBucket: Promise<Videos>[] = [];
-  const idBatches: string[][] = chunkArray(ids, Math.ceil(ids.length / 20));
+  const idBatches: string[][] = chunkArray(ids, Math.ceil(ids.length / 12));
   console.log("Downloading video info using", idBatches.length, "batches");
 
   for (const batch of idBatches) {
