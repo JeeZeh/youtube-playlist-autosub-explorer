@@ -2,6 +2,7 @@ import * as Youtubedl from "youtube-dl";
 import * as fs from "fs";
 const vttJson = require("vtt-json");
 const playlistDataLocation = "./playlist_data/";
+const temp = "./temp/";
 
 interface PlaylistUpdates {
   added: Set<string>;
@@ -71,42 +72,6 @@ const getVideoIds = (playlist: string): Promise<string[]> => {
 };
 
 /**
- * Returns a promise with information on a YouTube video with given ID
- * @param id {string} ID of the YouTube video
- */
-const getInfo = (id: string): Promise<MetadataPromise> => {
-  return new Promise((resolve, reject) => {
-    let error: any;
-    Youtubedl.getInfo(id, (err, info: any) => {
-      error = err;
-      if (!info) {
-        resolve({ id, error });
-        return;
-      }
-      const {
-        title,
-        description,
-        thumbnail,
-        upload_date,
-        _duration_raw,
-      } = info;
-      resolve({
-        id,
-        error,
-        meta: {
-          id,
-          title,
-          description,
-          thumbnail,
-          date: upload_date,
-          duration: _duration_raw,
-        },
-      });
-    });
-  });
-};
-
-/**
  * Returns an array with arrays of the given size.
  *
  * @param myArray {Array} array to split
@@ -144,6 +109,8 @@ const cleanPlaylistId = (potentialUrl: string): string => {
       );
     }
     return id;
+  } else if (potentialUrl.includes("v=") || potentialUrl.includes("watch")) {
+    throw new Error("YouTube video provided, please provide a playlist");
   } else {
     return potentialUrl;
   }
@@ -155,7 +122,6 @@ const cleanPlaylistId = (potentialUrl: string): string => {
  * @param subsJson
  */
 const cleanSubtitles = (subsJson: SubtitlePart[]): SubtitlePart[] => {
-  const originalLength = subsJson.length;
   const passEmptySubs = subsJson.filter((sub) => {
     return sub.part.trim() !== "";
   });
@@ -171,11 +137,6 @@ const cleanSubtitles = (subsJson: SubtitlePart[]): SubtitlePart[] => {
     }
     return true;
   });
-  console.log(
-    "Removed",
-    originalLength - passBackward.length,
-    "duplicate subtitles"
-  );
   return passBackward;
 };
 
@@ -199,94 +160,166 @@ const checkExistingPlaylistData = async (
   return playlistData;
 };
 
-const getPlaylistVideoMetadata = async (ids: string[]) => {
-  const idChunks = chunkArray(ids, 5);
-  const rawInfo: MetadataPromise[] = [];
-  let finishedPulling = 0;
-
-  for (const chunk of idChunks) {
-    const batch = chunk.map(getInfo);
-    // console.log(`Batch ${index + 1}/${idChunks.length}`);
-    const promiseBlock = await Promise.all(batch);
-    finishedPulling += promiseBlock.length;
-    console.log(`  [${finishedPulling}/${ids.length}] processed`);
-
-    rawInfo.push(...promiseBlock);
-  }
-
-  const successfulVideos: Videos = {};
-
-  rawInfo.forEach((p) => {
-    if (p.error) {
-      console.error("Failed to download video metadata:", p.id);
-    } else if (p.meta) successfulVideos[p.id] = p.meta;
-  });
-
-  return successfulVideos;
+const createVideoInfoFromYtdlOutput = (output: any): VideoInfo => {
+  const { title, description, thumbnail, upload_date, duration, id } = output;
+  return {
+    id,
+    title,
+    description,
+    thumbnail,
+    date: upload_date,
+    duration,
+  };
 };
 
-const getSubtitlesForVideoId = (id: string): Promise<string[]> => {
-  return new Promise((resolve, reject) => {
-    Youtubedl.getSubs(
-      id,
-      { lang: "en", all: false, auto: true, cwd: __dirname },
-      (err, output) => {
-        if (err) reject(err);
-        else {
-          resolve(output);
+const safeBatchYtdlInfo = async (ids: string[]): Promise<Videos> => {
+  const grabInfo = (ids: string[]): Promise<Videos> => {
+    return new Promise((resolve, reject) => {
+      Youtubedl.getInfo(
+        // @ts-expect-error
+        ids,
+        ["-i", "--skip-download", "--print-json"],
+        {},
+        async (err, data: Youtubedl.Info[]) => {
+          try {
+            let needsParse = false;
+            let dataArray;
+            if (data) dataArray = Array.from(data);
+            else if (err) {
+              dataArray = err.stdout.split(/\r\n|\r|\n/);
+              needsParse = true;
+            }
+            // @ts-expect-error
+            dataArray = dataArray.filter((d) => (needsParse && d !== "") || d);
+            let output: Videos = {};
+            for (let i = 0; i < dataArray.length; i++) {
+              let toProcess = needsParse
+                ? await JSON.parse(dataArray[i])
+                : dataArray[i];
+              output[toProcess.id] = createVideoInfoFromYtdlOutput(toProcess);
+            }
+
+            resolve(output);
+          } catch (e) {
+            reject(e);
+          }
         }
-      }
-    );
-  });
-};
+      );
+    });
+  };
 
-const downloadAndProcessSubtitles = async (
-  id: string
-): Promise<SubsPromise> => {
-  let convertedJsonSubtitle = [];
-  let error: any;
-  const videoSubs = await getSubtitlesForVideoId(id).catch((e) => (error = e));
-  if (videoSubs && videoSubs.length === 1) {
-    const subFile = videoSubs[0];
-    const vtt = fs.readFileSync(subFile).toString();
-    fs.unlinkSync(subFile); // Delete sub file after
-    convertedJsonSubtitle = await vttJson(vtt);
+  if (ids.length > 300) {
+    console.log("This might take a while, please be patient");
   }
-  return { id, convertedJsonSubtitle, error };
+
+  const promiseBucket: Promise<Videos>[] = [];
+  const idBatches: string[][] = chunkArray(ids, Math.ceil(ids.length / 20));
+  console.log("Downloading video info using", idBatches.length, "batches");
+
+  for (const batch of idBatches) {
+    promiseBucket.push(
+      grabInfo(batch).then((v) => {
+        console.log("  Batch of", batch.length, "video(s) retrieved");
+        return v;
+      })
+    );
+  }
+
+  let videos: Videos = {};
+
+  videos = Object.assign({}, ...(await Promise.all(promiseBucket)));
+
+  if (Object.keys(videos).length !== ids.length) {
+    console.warn(
+      `Some videos couldn't be accessed for indexing (${
+        ids.length - Object.keys(videos).length
+      })`
+    );
+    ids
+      .filter((id) => !videos.hasOwnProperty(id))
+      .forEach((id) => console.warn(`  ${id}`));
+  }
+
+  return videos;
 };
 
 /**
- *
- * @param ids {string[]} Array of video IDs to pull subs from
+ * Batch subtitle downloading in a way that tries to handle errors from Ytdl process without losing
+ * any successfully downloaded data.
+ * @param ids
  */
-const grabSubs = async (ids: string[]) => {
-  const idChunks = chunkArray(ids, 5);
-  const subs: Subtitles = {};
-  const promisedSubs: SubsPromise[] = [];
-  let finishedPulling = 0;
+const safeBatchYtdlSubs = async (ids: string[]): Promise<Subtitles> => {
+  const grabSubs = (ids: string[]): Promise<Subtitles> => {
+    return new Promise((resolve, reject) => {
+      Youtubedl.exec(
+        // @ts-expect-error
+        ids,
+        [
+          "--write-auto-sub",
+          "-i",
+          "--skip-download",
+          "--no-warnings",
+          "--sub-lang=en",
+          "--sub-format=vtt",
+        ],
+        { cwd: temp },
+        async (err, output) => {
+          const subFiles = fs.readdirSync(temp);
+          const idFiles: { id: string; file: string }[] = [];
+          ids.forEach((id) =>
+            subFiles.forEach((file) => {
+              if (file.includes(id)) {
+                idFiles.push({ id, file: `${temp}/${file}` });
+              }
+            })
+          );
 
-  for (const chunk of idChunks) {
-    const batch = chunk.map(downloadAndProcessSubtitles);
-    const promiseBlock = await Promise.all(batch);
-    finishedPulling += promiseBlock.length;
-    console.log(`  [${finishedPulling}/${ids.length}] processed`);
+          const subtitles: Subtitles = {};
+          for (const { id, file } of idFiles) {
+            const vtt = fs.readFileSync(file).toString();
+            fs.unlinkSync(file); // Delete sub file after
+            subtitles[id] = cleanSubtitles(await vttJson(vtt));
+          }
 
-    promisedSubs.push(...promiseBlock);
+          resolve(subtitles);
+        }
+      );
+    });
+  };
+
+  fs.mkdirSync(temp, { recursive: true });
+  fs.readdirSync(temp).forEach((f) => fs.unlinkSync(temp + f));
+  if (ids.length > 600) {
+    console.log("This might take a while, please be patient");
+  }
+  const promiseBucket: Promise<Subtitles>[] = [];
+  const idBatches = chunkArray(ids, Math.ceil(ids.length / 12));
+  console.log("Downloading subtitles info using", idBatches.length, "batches");
+
+  for (const batch of idBatches) {
+    promiseBucket.push(
+      grabSubs(batch).then((v) => {
+        console.log("  Batch of", batch.length, "subtitles(s) retrieved");
+        return v;
+      })
+    );
+  }
+  let subtitles: Subtitles = {};
+
+  subtitles = Object.assign({}, ...(await Promise.all(promiseBucket)));
+
+  if (Object.keys(subtitles).length !== ids.length) {
+    console.warn(
+      `Subtitles not available for the following videos (${
+        ids.length - Object.keys(subtitles).length
+      })`
+    );
+    ids
+      .filter((id) => !subtitles.hasOwnProperty(id))
+      .forEach((id) => console.warn(`  ${id}`));
   }
 
-  promisedSubs.forEach((s) => {
-    const { error, id, convertedJsonSubtitle } = s;
-    if (error) {
-      console.error("Error downloading subs for:", id);
-    } else if (Object.keys(convertedJsonSubtitle).length === 0) {
-      console.log("No subs found for video:", id);
-    }
-
-    const videoSubtitles = cleanSubtitles(convertedJsonSubtitle);
-    subs[id] = videoSubtitles;
-  });
-
-  return subs;
+  return subtitles;
 };
 
 /**
@@ -352,9 +385,10 @@ export const YtdlPlaylistDownloader = async (playlistId: string) => {
       } to playlist data`
     );
     logTitle("Downloading playlist metadata updates");
-    const newMetadata = await getPlaylistVideoMetadata([...added]);
+    const newMetadata = await safeBatchYtdlInfo([...added]);
+
     logTitle("Downloading playlist subtitle updates");
-    const newSubtitles = await grabSubs([...added]);
+    const newSubtitles = await safeBatchYtdlSubs([...added]);
     playlist.videos = { ...playlist.videos, ...newMetadata };
     playlist.subs = { ...playlist.subs, ...newSubtitles };
   }
@@ -374,6 +408,7 @@ export const YtdlPlaylistDownloader = async (playlistId: string) => {
   } else {
     logTitle("Done! No changes made to playlist data.");
   }
+  logTitle("                                               ");
 };
 
 const main = async () => {
