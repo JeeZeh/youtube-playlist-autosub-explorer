@@ -1,23 +1,62 @@
 import * as React from "react";
-import { useState, useEffect, useContext } from "react";
-import { hot } from "react-hot-loader";
+import { BrowserRouter as Router, Route, Link } from "react-router-dom";
 import "./../assets/scss/App.scss";
-import styled from "styled-components";
-import { PlaylistMetadata } from "../../server";
-import { getPlaylists } from "./PlaylistApi";
+import { createStyles, makeStyles, Theme } from "@material-ui/core/styles";
 import { Playlists } from "./Playlists";
+import AppBar from "@material-ui/core/AppBar";
+import Toolbar from "@material-ui/core/Toolbar";
+import Typography from "@material-ui/core/Typography";
+import PlaylistExplorer from "./PlaylistExplorer";
+import styled from "styled-components";
 
-const Body = styled.div``;
+const useStyles = makeStyles((theme: Theme) =>
+  createStyles({
+    root: {
+      flexGrow: 1,
+      backgroundColor: "#fafafa",
+      minHeight: "100vh",
+    },
+    title: {
+      flexGrow: 1,
+    },
+    header: {
+      color: "whitesmoke",
+    },
+  })
+);
+
+export const StyledLink = styled(Link)`
+  text-decoration: none;
+
+  &:focus,
+  &:hover,
+  &:visited,
+  &:link,
+  &:active {
+    text-decoration: none;
+  }
+`;
 
 const App = (props: {}) => {
+  const classes = useStyles();
+
   return (
-    <Body>
-      <h1>Youtube Autosub Explorer</h1>
-      <Playlists />
-    </Body>
+    <div className={classes.root}>
+      <Router>
+        <AppBar position="static">
+          <Toolbar>
+            <Typography variant="h6" className={classes.title}>
+              <StyledLink to={"/"} className={classes.header}>
+                YouTube Playlist Autosub Explorer
+              </StyledLink>
+            </Typography>
+          </Toolbar>
+        </AppBar>
+        <Route exact={true} path="/" component={Playlists} />
+        <Route path="/p/:playlistId" component={PlaylistExplorer} />
+      </Router>
+    </div>
   );
 };
-
-declare let module: object;
 
 export default App;

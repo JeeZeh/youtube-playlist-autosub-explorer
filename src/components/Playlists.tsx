@@ -1,86 +1,114 @@
 import * as React from "react";
-import { useState, useEffect, useContext } from "react";
-import { hot } from "react-hot-loader";
+import { useState, useEffect } from "react";
+import { makeStyles } from "@material-ui/core/styles";
 import "./../assets/scss/App.scss";
-import styled from "styled-components";
 import { PlaylistMetadata } from "../../server";
-import { getPlaylists } from "./PlaylistApi";
+import { getPlaylistMetadata } from "./PlaylistApi";
+import { CircleLoader } from "react-spinners";
 
-const Wrapper = styled.div`
-  display: flex;
-  margin: auto;
-  flex-direction: column;
-  background: #eee;
-  width: 80%;
-  padding: 10px 40px;
-  justify-content: center;
-  max-width: 900px;
-  min-width: 600px;
-`;
+import {
+  Card,
+  CardMedia,
+  CardContent,
+  Button,
+  CardActions,
+  Typography,
+  Grid,
+  Divider,
+} from "@material-ui/core";
+import { StyledLink } from "./App";
 
-const PlaylistEntry = styled.div`
-  display: grid;
-  grid-template-areas: "thumb meta";
-  grid-template-columns: 300px auto;
-  padding: 5px;
-  margin: 10px 0;
-  height: 150px;
-  cursor: pointer;
-`;
-
-const Thumbnail = styled.img`
-  grid-area: thumb;
-  justify-self: center;
-  align-self: center;
-  width: auto;
-  max-width: 300px;
-  height: 100%;
-  border-radius: 4px;
-`;
-
-const Metadata = styled.div`
-  grid-area: meta;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-`;
-
-const Title = styled.div`
-  font-size: 20px;
-  font-weight: 800px;
-`;
-
-const Subtitle = styled.div`
-  font-size: 16px;
-  font-weight: 600;
-`;
+const useStyles = makeStyles({
+  root: {
+    maxWidth: 300,
+  },
+  media: {
+    height: 150,
+  },
+  grid: { justifyContent: "center" },
+  wrapper: {
+    maxWidth: 800,
+    margin: "auto",
+  },
+});
 
 export const Playlists = () => {
   const [playlists, setPlaylists] = useState<PlaylistMetadata[]>();
+  const classes = useStyles();
 
   useEffect(() => {
-    getPlaylists().then(setPlaylists);
+    getPlaylistMetadata().then(setPlaylists);
   }, []);
 
   const renderPlaylist = (p: PlaylistMetadata) => {
     return (
-      <PlaylistEntry
-        onClick={() =>
-          window.open("https://youtube.com/playlist?list=" + p.id, "_blank")
-        }
-      >
-        <Thumbnail src={p.thumbnail}></Thumbnail>
-        <Metadata>
-          <Title>{p.id}</Title>
-          <Subtitle>
+      <Card className={classes.root}>
+        <CardMedia
+          className={classes.media}
+          image={p.thumbnail}
+          title="Playlist Thumbnail"
+        />
+        <CardContent>
+          <Typography gutterBottom variant="h6" component="h5" noWrap>
+            {p.id}
+          </Typography>
+          <Typography variant="body2" color="textSecondary" component="p">
             Videos: {p.videoCount}
-            <br />
+          </Typography>
+          <Typography variant="body2" color="textSecondary" component="p">
             Videos with Subs: {p.videosWithSubs}
-          </Subtitle>
-        </Metadata>
-      </PlaylistEntry>
+          </Typography>
+          <Typography variant="body2" color="textSecondary" component="p">
+            Playlist Length: {p.totalLength}
+          </Typography>
+        </CardContent>
+        <CardActions>
+          <Button size="small" color="primary">
+            <StyledLink
+              to={{
+                pathname: `/p/${p.id}`,
+                state: {
+                  metadata: p,
+                },
+              }}
+            >
+              Explore
+            </StyledLink>
+          </Button>
+          <Button
+            size="small"
+            color="secondary"
+            onClick={() =>
+              window.open("https://youtube.com/playlist?list=" + p.id, "_blank")
+            }
+          >
+            View on YouTube
+          </Button>
+        </CardActions>
+      </Card>
     );
   };
 
-  return <Wrapper>{playlists && playlists.map(renderPlaylist)}</Wrapper>;
+  return (
+    <Grid container className={classes.wrapper} direction="column" spacing={5}>
+      <Grid container item spacing={2} direction="column">
+        <Grid item>
+          <Typography variant="h3">Playlists</Typography>
+        </Grid>
+        <Grid item>
+          <Divider />
+        </Grid>
+      </Grid>
+
+      <Grid container item spacing={3} className={classes.grid}>
+        {playlists &&
+          playlists.map((p, i) => (
+            <Grid item key={i}>
+              {renderPlaylist(p)}
+            </Grid>
+          ))}
+        {!playlists && <CircleLoader />}
+      </Grid>
+    </Grid>
+  );
 };

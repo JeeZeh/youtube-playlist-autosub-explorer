@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { PlaylistJSON } from "./ytdl";
 import * as fs from "fs";
+import humanizeDuration from "humanize-duration";
 import cors from "cors";
 const app = express();
 const port = 8080; // default port to listen
@@ -18,15 +19,19 @@ const initPlaylistData = async () => {
       fs.readFileSync(playlistDirectory + "/" + filename, "utf-8")
     );
 
-    if (playlistData.videos.length === 0) continue;
-
+    if (Object.keys(playlistData.videos).length === 0) continue;
+    let totalLength = 0;
+    Object.values(playlistData.videos).forEach((v) => {
+      totalLength += v.duration;
+    });
     const metadata: PlaylistMetadata = {
       id: playlistData.id,
-      videoCount: playlistData.videos.length,
+      videoCount: Object.keys(playlistData.videos).length,
       videosWithSubs: Object.keys(playlistData.subs).filter(
         (s) => playlistData.subs[s].length !== 0
       ).length,
-      thumbnail: playlistData.videos[0].thumbnail,
+      thumbnail: Object.values(playlistData.videos)[0].thumbnail,
+      totalLength: humanizeDuration(1000 * totalLength, { largest: 2 }),
     };
 
     playlistMetadata.set(playlistData.id, metadata);
@@ -39,12 +44,23 @@ export interface PlaylistMetadata {
   id: string;
   videoCount: number;
   videosWithSubs: number;
+  totalLength: string;
   thumbnail: string;
 }
 
 const initRoutes = async () => {
-  app.get("/playlists", (req, res) => {
+  app.get("/playlist_metadata", (req, res) => {
     res.json([...playlistMetadata.values()]);
+  });
+
+  app.get("/playlist/:id", (req, res) => {
+    const { id } = req.params;
+
+    if (!playlists.has(id)) res.status(404).send();
+    const playlist = playlists.get(id);
+
+    if (!playlist) res.status(500).send();
+    res.json(playlist);
   });
 };
 

@@ -3,3 +3,4 @@ playlist_data
 dist
 .vscode
 *.js
+.VSCodeCounter

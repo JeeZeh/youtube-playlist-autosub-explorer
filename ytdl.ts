@@ -10,8 +10,8 @@ interface PlaylistUpdates {
 
 export interface PlaylistJSON {
   id: string;
-  videos: VideoInfo[];
-  subs: VideoSubtitles;
+  videos: Videos;
+  subs: Subtitles;
 }
 
 interface SubsPromise {
@@ -26,19 +26,27 @@ interface MetadataPromise {
   meta?: VideoInfo;
 }
 
+export interface Videos {
+  [key: string]: VideoInfo;
+}
+
 export interface VideoInfo {
   id: string;
   title: string;
   thumbnail: string;
   description: string;
+  date: string;
+  duration: number;
 }
 
-export interface VideoSubtitles {
-  [key: string]: {
-    start: number;
-    end: number;
-    part: string;
-  }[];
+export interface SubtitlePart {
+  start: number;
+  end: number;
+  part: string;
+}
+
+export interface Subtitles {
+  [key: string]: SubtitlePart[];
 }
 
 /**
@@ -75,8 +83,25 @@ const getInfo = (id: string): Promise<MetadataPromise> => {
         resolve({ id, error });
         return;
       }
-      const { title, description, thumbnail } = info;
-      resolve({ id, error, meta: { id, title, description, thumbnail } });
+      const {
+        title,
+        description,
+        thumbnail,
+        upload_date,
+        _duration_raw,
+      } = info;
+      resolve({
+        id,
+        error,
+        meta: {
+          id,
+          title,
+          description,
+          thumbnail,
+          date: upload_date,
+          duration: _duration_raw,
+        },
+      });
     });
   });
 };
@@ -124,16 +149,46 @@ const cleanPlaylistId = (potentialUrl: string): string => {
   }
 };
 
+/**
+ * Naive, and SLOW, subtitle cleaning. Attempts to remove subtitles where a SubtitlePart
+ * appears in entirety either before or after it. Also removes empty subtitle parts.
+ * @param subsJson
+ */
+const cleanSubtitles = (subsJson: SubtitlePart[]): SubtitlePart[] => {
+  const originalLength = subsJson.length;
+  const passEmptySubs = subsJson.filter((sub) => {
+    return sub.part.trim() !== "";
+  });
+  const passForward = passEmptySubs.filter((sub, i) => {
+    if (i < passEmptySubs.length - 1) {
+      return !passEmptySubs[i + 1].part.includes(sub.part);
+    }
+    return true;
+  });
+  const passBackward = passForward.filter((sub, i) => {
+    if (i > 0) {
+      return !passForward[i - 1].part.includes(sub.part);
+    }
+    return true;
+  });
+  console.log(
+    "Removed",
+    originalLength - passBackward.length,
+    "duplicate subtitles"
+  );
+  return passBackward;
+};
+
 const checkExistingPlaylistData = async (
   playlistId: string
 ): Promise<PlaylistJSON> => {
-  const playlistData: PlaylistJSON = { id: playlistId, videos: [], subs: {} };
+  const playlistData: PlaylistJSON = { id: playlistId, videos: {}, subs: {} };
   try {
     const fileData: PlaylistJSON = await JSON.parse(
       fs.readFileSync(`${playlistDataLocation}${playlistId}.json`, "utf8")
     );
     console.log("  Existing playlist data found");
-    if (fileData.videos && fileData.videos.length > 0)
+    if (fileData.videos && Object.keys(fileData.videos).length > 0)
       playlistData.videos = fileData.videos;
     if (fileData.subs && Object.keys(fileData.subs).length > 0)
       playlistData.subs = fileData.subs;
@@ -159,12 +214,12 @@ const getPlaylistVideoMetadata = async (ids: string[]) => {
     rawInfo.push(...promiseBlock);
   }
 
-  const successfulVideos: VideoInfo[] = [];
+  const successfulVideos: Videos = {};
 
   rawInfo.forEach((p) => {
     if (p.error) {
       console.error("Failed to download video metadata:", p.id);
-    } else if (p.meta) successfulVideos.push(p.meta);
+    } else if (p.meta) successfulVideos[p.id] = p.meta;
   });
 
   return successfulVideos;
@@ -206,7 +261,7 @@ const downloadAndProcessSubtitles = async (
  */
 const grabSubs = async (ids: string[]) => {
   const idChunks = chunkArray(ids, 5);
-  const subs: VideoSubtitles = {};
+  const subs: Subtitles = {};
   const promisedSubs: SubsPromise[] = [];
   let finishedPulling = 0;
 
@@ -226,7 +281,9 @@ const grabSubs = async (ids: string[]) => {
     } else if (Object.keys(convertedJsonSubtitle).length === 0) {
       console.log("No subs found for video:", id);
     }
-    subs[id] = convertedJsonSubtitle;
+
+    const videoSubtitles = cleanSubtitles(convertedJsonSubtitle);
+    subs[id] = videoSubtitles;
   });
 
   return subs;
@@ -241,7 +298,7 @@ const checkForPlaylistDataUpdates = async (
   playlistData: PlaylistJSON
 ): Promise<PlaylistUpdates> => {
   const freshIds = new Set(await getVideoIds(playlistData.id));
-  const currentIds = new Set(playlistData.videos.map((v) => v.id));
+  const currentIds = new Set(Object.keys(playlistData.videos));
   // Check for differences in data
   const added = new Set([...freshIds].filter((x) => !currentIds.has(x)));
   const removed = new Set([...currentIds].filter((x) => !freshIds.has(x)));
@@ -255,7 +312,6 @@ const checkForPlaylistDataUpdates = async (
  */
 export const YtdlPlaylistDownloader = async (playlistId: string) => {
   playlistId = cleanPlaylistId(playlistId);
-  logTitle("YouTube Playlist Autosub Downloader");
   console.log("  Processing playlist:", playlistId);
   let playlist = await checkExistingPlaylistData(playlistId);
   const { added, removed } = await checkForPlaylistDataUpdates(playlist);
@@ -270,7 +326,15 @@ export const YtdlPlaylistDownloader = async (playlistId: string) => {
         removed.size > 1 ? "s" : ""
       } from playlist data`
     );
-    playlist.videos = playlist.videos.filter((v) => !removed.has(v.id));
+    playlist.videos = Object.keys(playlist.videos)
+      .filter((id) => !removed.has(id))
+      .reduce((obj, key) => {
+        return {
+          ...obj,
+          [key]: playlist.videos[key],
+        };
+      }, {});
+
     playlist.subs = Object.keys(playlist.subs)
       .filter((id) => !removed.has(id))
       .reduce((obj, key) => {
@@ -291,7 +355,7 @@ export const YtdlPlaylistDownloader = async (playlistId: string) => {
     const newMetadata = await getPlaylistVideoMetadata([...added]);
     logTitle("Downloading playlist subtitle updates");
     const newSubtitles = await grabSubs([...added]);
-    playlist.videos = [...playlist.videos, ...newMetadata];
+    playlist.videos = { ...playlist.videos, ...newMetadata };
     playlist.subs = { ...playlist.subs, ...newSubtitles };
   }
 
@@ -312,4 +376,26 @@ export const YtdlPlaylistDownloader = async (playlistId: string) => {
   }
 };
 
-YtdlPlaylistDownloader("UUNvsIonJdJ5E4EXMa65VYpA");
+const main = async () => {
+  logTitle("YouTube Playlist Autosub Downloader");
+
+  const playlists = process.argv.slice(
+    process.argv.findIndex((arg) => arg === "--") + 1
+  );
+
+  if (playlists.length === 0)
+    console.error(
+      "No playlists provided. Use the command like:\n\nnpm run ytdl [playlist_id/url] [playlist_id/url] etc.\n"
+    );
+  else {
+    console.log("Found the following playlists to try download", playlists);
+
+    for (const playlist of playlists) {
+      await YtdlPlaylistDownloader(playlist).catch((e) =>
+        console.error("Playlist download failed for", playlist, e)
+      );
+    }
+  }
+};
+
+main();
