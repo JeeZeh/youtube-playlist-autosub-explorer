@@ -10,8 +10,6 @@ import { PlaylistJSON, SubtitlePart } from "../../ytdl";
 import { PlaylistMetadata } from "../../server";
 import { Paper, Button, TextField } from "@material-ui/core";
 import { CircleLoader } from "react-spinners";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
 import { FixedSizeList, ListChildComponentProps } from "react-window";
 import { SubtitleResultElement } from "./SubtitleResultElement";
 
@@ -21,6 +19,7 @@ const useStyles = makeStyles({
     width: "80vw",
     maxWidth: 750,
     margin: "auto",
+    paddingBottom: 100,
     flexDirection: "column",
     alignItems: "center",
   },
@@ -36,39 +35,18 @@ const useStyles = makeStyles({
     justifyContent: "space-around",
     width: 400,
   },
-  bar: { display: "grid", gridTemplateColumns: "auto 1fr" },
-  results: {},
+  bar: { display: "grid", gridTemplateColumns: "auto 1fr auto" },
+  results: {
+    width: 120,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: 40,
+  },
+  button: {
+    height: 40,
+  },
 });
-
-/**
- * Serialises all subtitle parts from all playlist videos by using indice ranges.
- * Flat packs all subtitles into a single array and stores indice ranges of corresponding
- * videos.
- * If a subtitle has index 30, and subtitle ranges for video 2 start at 20 and end
- * at 40, then we know subtitle 30 came from video 2 and it is the 10th subtitle.
- * @param playlist
- */
-const buildIndex = (
-  playlist: PlaylistJSON
-): { index: Index<string>; flatSubs: FlatSubs } => {
-  let flatSubs: FlatSubs = { idList: [], subs: [], idRange: [] };
-  const index: Index<string> = FlexSearch.create({
-    async: true,
-    encode: "advanced",
-  });
-
-  for (const [id, subs] of Object.entries(playlist.subs)) {
-    flatSubs.idList.push(id);
-    flatSubs.idRange.push(flatSubs.subs.length + subs.length);
-    flatSubs.subs.push(...subs);
-  }
-
-  flatSubs.subs.forEach((sub, i) => {
-    index.add(i, sub.part);
-  });
-
-  return { index, flatSubs };
-};
 
 type RouteParams = {
   playlistId: string;
@@ -94,6 +72,8 @@ const PlaylistExplorer = ({
   const { metadata } = location.state;
   const [playlist, setPlaylist] = useState<PlaylistJSON>();
   const [searchValue, setSearchValue] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [resultCount, setResultCount] = useState(0);
   const [flatSubs, setFlatSubs] = useState<FlatSubs>();
   const [flexIndex, setFlexIndex] = useState<Index<string>>();
   const [flexResults, setFlexResults] = useState<SubSearchResult[]>();
@@ -117,26 +97,72 @@ const PlaylistExplorer = ({
     return results;
   };
 
+  /**
+   * Serialises all subtitle parts from all playlist videos by using indice ranges.
+   * Flat packs all subtitles into a single array and stores indice ranges of corresponding
+   * videos.
+   * If a subtitle has index 30, and subtitle ranges for video 2 start at 20 and end
+   * at 40, then we know subtitle 30 came from video 2 and it is the 10th subtitle.
+   * @param playlist
+   */
+  const buildIndex = (): { index: Index<string>; flatSubs: FlatSubs } => {
+    let flatSubs: FlatSubs = { idList: [], subs: [], idRange: [] };
+    console.log("Building index");
+
+    const index: Index<string> = FlexSearch.create({
+      async: true,
+      profile: "speed",
+      encode: "advanced",
+    });
+
+    for (const [id, subs] of Object.entries(playlist.subs)) {
+      flatSubs.idList.push(id);
+      flatSubs.idRange.push(flatSubs.subs.length + subs.length);
+      flatSubs.subs.push(...subs);
+    }
+
+    for (let i = 0; i < flatSubs.subs.length; i++) {
+      index.add(i, flatSubs.subs[i].part);
+    }
+
+    return { index, flatSubs };
+  };
+
   useEffect(() => {
     getPlaylist(playlistId).then((p) => {
       setPlaylist(p);
     });
+
+    return () => {
+      setPlaylist(null);
+    };
   }, []);
 
   useEffect(() => {
-    if (playlist) {
-      const { index, flatSubs } = buildIndex(playlist);
+    if (playlist && !flexIndex) {
+      const { index, flatSubs } = buildIndex();
       setFlexIndex(index);
       setFlatSubs(flatSubs);
+      index.search(" ").then(() => setLoaded(true));
     }
+
+    return () => {
+      setFlatSubs(null);
+      setFlexIndex(null);
+    };
   }, [playlist]);
 
   useEffect(() => {
     if (flexIndex && flatSubs && searchValue) {
-      flexIndex.search(searchValue).then(findSubParts).then(setFlexResults);
+      flexIndex
+        .search(searchValue, { limit: 99999 })
+        .then(findSubParts)
+        .then((results) => {
+          setResultCount(results.length);
+          setFlexResults(results.slice(0, 500));
+        });
     }
   }, [searchValue]);
-
   useEffect(() => {
     if (flexResults) console.log(flexResults);
   }, [flexResults]);
@@ -191,7 +217,7 @@ const PlaylistExplorer = ({
 
   const FlexResults = () => {
     return (
-      <Paper className={classes.results} variant="elevation">
+      <Paper variant="elevation">
         <FixedSizeList
           height={Math.min(800, flexResults.length * 80)}
           width={750}
@@ -212,7 +238,8 @@ const PlaylistExplorer = ({
           <Grid item>
             <Button
               color="secondary"
-              variant="contained"
+              variant="outlined"
+              className={classes.button}
               onClick={() =>
                 window.open(
                   "https://youtube.com/playlist?list=" + metadata.id,
@@ -220,7 +247,7 @@ const PlaylistExplorer = ({
                 )
               }
             >
-              Play on YouTube
+              View on YouTube
             </Button>
           </Grid>
 
@@ -230,11 +257,22 @@ const PlaylistExplorer = ({
               label="Search Subtitles"
               variant="outlined"
               size="small"
+              disabled={!loaded}
               fullWidth
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
             />
           </Grid>
+          {flexResults && (
+            <Grid item>
+              <Paper variant="outlined">
+                <Typography className={classes.results} variant="body2">
+                  Results:{" "}
+                  {resultCount === 99999 ? resultCount + "+" : resultCount}
+                </Typography>
+              </Paper>
+            </Grid>
+          )}
         </Grid>
       )}
       {flexResults && <FlexResults />}
@@ -248,11 +286,23 @@ const PlaylistExplorer = ({
       {!flexIndex && (
         <>
           <Grid item>
-            <CircleLoader />
+            <CircleLoader color="#cd4588" />
           </Grid>
           <Grid item>
             <Typography variant="subtitle1" color="textSecondary">
-              Building subtitle index
+              Building subtitle index... (this might take a while)
+            </Typography>
+          </Grid>
+        </>
+      )}
+      {flexIndex && !loaded && (
+        <>
+          <Grid item>
+            <CircleLoader color="#cd4588" />
+          </Grid>
+          <Grid item>
+            <Typography variant="subtitle1" color="textSecondary">
+              Building shards... (just a bit longer!)
             </Typography>
           </Grid>
         </>

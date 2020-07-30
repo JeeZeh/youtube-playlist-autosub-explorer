@@ -62,22 +62,24 @@ export const Playlists = () => {
             Playlist Length: {p.totalLength}
           </Typography>
         </CardContent>
-        <CardActions>
-          <Button size="small" color="primary">
-            <StyledLink
-              to={{
-                pathname: `/p/${p.id}`,
-                state: {
-                  metadata: p,
-                },
-              }}
-            >
+        <CardActions style={{ justifyContent: "center", marginBottom: 10 }}>
+          <StyledLink
+            to={{
+              pathname: `/p/${p.id}`,
+              state: {
+                metadata: p,
+              },
+            }}
+          >
+            <Button size="small" color="primary" variant="contained">
               Explore
-            </StyledLink>
-          </Button>
+            </Button>
+          </StyledLink>
+
           <Button
             size="small"
             color="secondary"
+            variant="outlined"
             onClick={() =>
               window.open("https://youtube.com/playlist?list=" + p.id, "_blank")
             }
@@ -93,7 +95,7 @@ export const Playlists = () => {
     <Grid container className={classes.wrapper} direction="column" spacing={5}>
       <Grid container item spacing={2} direction="column">
         <Grid item>
-          <Typography variant="h3">Playlists</Typography>
+          <Typography variant="h4">Playlists</Typography>
         </Grid>
         <Grid item>
           <Divider />

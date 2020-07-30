@@ -8,13 +8,14 @@ import Toolbar from "@material-ui/core/Toolbar";
 import Typography from "@material-ui/core/Typography";
 import PlaylistExplorer from "./PlaylistExplorer";
 import styled from "styled-components";
+import { Button } from "@material-ui/core";
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
       flexGrow: 1,
       backgroundColor: "#fafafa",
-      minHeight: "100vh",
+      minHeight: "101vh",
     },
     title: {
       flexGrow: 1,
@@ -50,6 +51,14 @@ const App = (props: {}) => {
                 YouTube Playlist Autosub Explorer
               </StyledLink>
             </Typography>
+            <StyledLink to={"/"}>
+              <Button
+                variant="outlined"
+                style={{ color: "whitesmoke", borderColor: "whitesmoke" }}
+              >
+                Home
+              </Button>
+            </StyledLink>
           </Toolbar>
         </AppBar>
         <Route exact={true} path="/" component={Playlists} />

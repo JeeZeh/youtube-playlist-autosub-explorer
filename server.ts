@@ -37,7 +37,6 @@ const initPlaylistData = async () => {
     playlistMetadata.set(playlistData.id, metadata);
     playlists.set(filename.split(".json")[0], playlistData);
   }
-  console.log(playlistMetadata);
 };
 
 export interface PlaylistMetadata {
