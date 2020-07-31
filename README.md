@@ -11,7 +11,17 @@ with at least a couple months of dialogue.
 ## How does it work?
 
 Using `youtube-dl`, playlist information is downloaded and auto-subtitle content for each video is pulled.
-Subtitle content is searched and explored using basic user interface built with React
+Subtitle content is searched and explored using basic user interface built with React.
+
+### Playlist Page
+![](https://i.vgy.me/Y3vEDW.png)
+
+#### Exploring a Playlist's Subtitles
+![](https://i.vgy.me/wiXggL.png)
+
+#### Jumping Right to the Timestamp
+![](https://i.vgy.me/S9MmxB.png)
+
 
 ## Why is it?
 
@@ -36,7 +46,8 @@ If you've ever wanted to quickly search for something that was said in a series 
 1. Secondary STT method for extracting subtitles
 1. ~Implement basic API for front-end to access the data~
 1. ~Figure out how to efficiently search for text across millions of subtitle entries~ [FlexSearch](https://github.com/nextapps-de/flexsearch)
-1. Include playlist title
+1. Include playlist title in Ytdl
+1. Refresh playlist_data folder on changes so you don't need to keep restarting the UI
 
 ### UI
 
