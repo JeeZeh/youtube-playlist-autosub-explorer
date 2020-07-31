@@ -22,7 +22,7 @@ const initPlaylistData = async () => {
     if (Object.keys(playlistData.videos).length === 0) continue;
     let totalLength = 0;
     Object.values(playlistData.videos).forEach((v) => {
-      totalLength += v.duration;
+      if (v.duration) totalLength += v.duration;
     });
     const metadata: PlaylistMetadata = {
       id: playlistData.id,

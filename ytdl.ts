@@ -161,14 +161,16 @@ const checkExistingPlaylistData = async (
 };
 
 const createVideoInfoFromYtdlOutput = (output: any): VideoInfo => {
-  const { title, description, thumbnail, upload_date, duration, id } = output;
+  const { title, description, thumbnail, upload_date: date, id } = output;
+  const duration = output._duration_raw ?? output.duration;
+
   return {
     id,
     title,
     description,
     thumbnail,
-    date: upload_date,
-    duration: parseInt(duration),
+    date,
+    duration,
   };
 };
 
@@ -184,13 +186,14 @@ const safeBatchYtdlInfo = async (ids: string[]): Promise<Videos> => {
           try {
             let needsParse = false;
             let dataArray;
-            if (data) dataArray = Array.from(data);
+            if (data) dataArray = Array.isArray(data) ? data : [data];
             else if (err) {
               dataArray = err.stdout.split(/\r\n|\r|\n/);
               needsParse = true;
             }
-            // @ts-expect-error
-            dataArray = dataArray.filter((d) => (needsParse && d !== "") || d);
+            dataArray = dataArray.filter(
+              (d: string | Youtubedl.Info) => (needsParse && d !== "") || d
+            );
             let output: Videos = {};
             for (let i = 0; i < dataArray.length; i++) {
               let toProcess = needsParse
