@@ -163,9 +163,6 @@ const PlaylistExplorer = ({
         });
     }
   }, [searchValue]);
-  useEffect(() => {
-    if (flexResults) console.log(flexResults);
-  }, [flexResults]);
 
   const PlaylistHeader = () => {
     return (
@@ -205,6 +202,10 @@ const PlaylistExplorer = ({
   const renderRow = (props: ListChildComponentProps) => {
     const { index, style } = props;
     const video = playlist.videos[flexResults[index].videoId];
+    if (!video) {
+      console.log("BROKE", flexResults[index].videoId);
+      return <></>;
+    }
     return (
       <SubtitleResultElement
         index={index}

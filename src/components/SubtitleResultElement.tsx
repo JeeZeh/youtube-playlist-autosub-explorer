@@ -52,7 +52,6 @@ const formatSeconds = (input: number) => {
 
 export const SubtitleResultElement = (props: SubtitleResultElementProps) => {
   const { index, style, video, flexResults } = props;
-  if (!video) return <ListItem></ListItem>;
   const sub = flexResults[index].part;
   const appearsAt = Math.floor(sub.start / 1000);
   return (
