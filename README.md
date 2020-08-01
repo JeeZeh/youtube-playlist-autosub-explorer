@@ -42,6 +42,10 @@ If you've ever wanted to quickly search for something that was said in a series 
 5. It's clunky and buggy, and is not an enterprise-ready™ solution. As such, a lot of the implemented QoL features like updating local playlists etc. emply naive solutions which may not work well. For example, if you index a video which does not have subtitles, but then has subtitles added to it, the tool won't be aware of this.
 6. If in doubt, delete the playlist and download it again!
 
+#### Potential rate limiting!
+<img src="https://i.vgy.me/upSb0O.png" width="450">
+
+
 
 # To-Do:
 
@@ -68,11 +72,11 @@ If you've ever wanted to quickly search for something that was said in a series 
 # Images
 
 ### Playlist Page
-![](https://i.vgy.me/Y3vEDW.png)
+<img src="https://i.vgy.me/Y3vEDW.png" width="600">
 
 #### Exploring a Playlist's Subtitles
-![](https://i.vgy.me/wiXggL.png)
+<img src="https://i.vgy.me/wiXggL.png" width="600">
 
 #### Jumping Right to the Timestamp
-![](https://i.vgy.me/S9MmxB.png)
+<img src="https://i.vgy.me/S9MmxB.png" width="600">
 
