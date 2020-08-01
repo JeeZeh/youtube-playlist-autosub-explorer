@@ -1,7 +1,10 @@
+.vscode
+.VSCodeCounter
+
 node_modules
 playlist_data
 dist
-.vscode
+
 ytdl.js
 server.js
-.VSCodeCounter
+test.js

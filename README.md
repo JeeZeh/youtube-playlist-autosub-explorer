@@ -33,8 +33,12 @@ If you've ever wanted to quickly search for something that was said in a series 
 2. Clone the repo
 3. `npm i` - inside the repo to install dependencies
 4. `npm run ytdl [playlist_url] [playlist_url] ...` - Downloads playlists to be explored, wait for it to finish before moving on
+   1.  Additionally specify `update` with `npm run ytdl` to update any existing playlist data, in addition to any new URLs provided
+   2.  Additionally specify `threads=x` with `npm run ytdl` to set the number of youtube-dl processes to spawn [min=1, max=100]
 5. `npm start` - Should open the UI in web browser!
-6. Spam `Ctrl-C` to close I guess
+6. Spam `ctrl-c` to close I guess
+
+
 
 # To-Do:
 

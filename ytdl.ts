@@ -3,6 +3,7 @@ import * as fs from "fs";
 const vttJson = require("vtt-json");
 const playlistDataLocation = "./playlist_data/";
 const temp = "./temp/";
+let userThreads = 12;
 
 interface PlaylistUpdates {
   added: Set<string>;
@@ -216,7 +217,10 @@ const safeBatchYtdlInfo = async (ids: string[]): Promise<Videos> => {
   }
 
   const promiseBucket: Promise<Videos>[] = [];
-  const idBatches: string[][] = chunkArray(ids, Math.ceil(ids.length / 12));
+  const idBatches: string[][] = chunkArray(
+    ids,
+    Math.ceil(ids.length / userThreads)
+  );
   console.log("Downloading video info using", idBatches.length, "batches");
 
   for (const batch of idBatches) {
@@ -240,7 +244,7 @@ const safeBatchYtdlInfo = async (ids: string[]): Promise<Videos> => {
     );
     ids
       .filter((id) => !videos.hasOwnProperty(id))
-      .forEach((id) => console.warn(`  ${id}`));
+      .forEach((id) => console.warn(`  https://youtu.be/${id}`));
   }
 
   return videos;
@@ -280,7 +284,7 @@ const safeBatchYtdlSubs = async (ids: string[]): Promise<Subtitles> => {
           const subtitles: Subtitles = {};
           for (const { id, file } of idFiles) {
             const vtt = fs.readFileSync(file).toString();
-            fs.unlinkSync(file); // Delete sub file after
+            fs.unlink(file, () => {}); // Delete sub file after
             subtitles[id] = cleanSubtitles(await vttJson(vtt));
           }
 
@@ -296,7 +300,7 @@ const safeBatchYtdlSubs = async (ids: string[]): Promise<Subtitles> => {
     console.log("This might take a while, please be patient");
   }
   const promiseBucket: Promise<Subtitles>[] = [];
-  const idBatches = chunkArray(ids, Math.ceil(ids.length / 12));
+  const idBatches = chunkArray(ids, Math.ceil(ids.length / userThreads));
   console.log("Downloading subtitles info using", idBatches.length, "batches");
 
   for (const batch of idBatches) {
@@ -319,7 +323,7 @@ const safeBatchYtdlSubs = async (ids: string[]): Promise<Subtitles> => {
     );
     ids
       .filter((id) => !subtitles.hasOwnProperty(id))
-      .forEach((id) => console.warn(`  ${id}`));
+      .forEach((id) => console.warn(`  https://youtu.be/${id}`));
   }
 
   return subtitles;
@@ -330,7 +334,7 @@ const safeBatchYtdlSubs = async (ids: string[]): Promise<Subtitles> => {
  * Assumes videos ids and subs ids will be the same
  * @param playlistData {PlaylistJSON} Current playlist data
  */
-const checkForPlaylistDataUpdates = async (
+const checkForPlaylistDataChanges = async (
   playlistData: PlaylistJSON
 ): Promise<PlaylistUpdates> => {
   const freshIds = new Set(await getVideoIds(playlistData.id));
@@ -342,6 +346,17 @@ const checkForPlaylistDataUpdates = async (
   return { added, removed };
 };
 
+const checkForUpdates = async () => {
+  const playlists = fs.readdirSync(playlistDataLocation);
+  logTitle("Checking for updates...");
+  console.log("Identified", playlists.length, "playlists.");
+  for (const playlist of playlists) {
+    await YtdlPlaylistDownloader(playlist.split(".json")[0]).catch((e) =>
+      console.error("Playlist download failed for", playlist, e)
+    );
+  }
+};
+
 /**
  * Main wrapper for program. The wrapper will handle downloading and updating any playlist provided.
  * @param playlistId {string} Either playlist ID or URL
@@ -350,7 +365,7 @@ export const YtdlPlaylistDownloader = async (playlistId: string) => {
   playlistId = cleanPlaylistId(playlistId);
   console.log("  Processing playlist:", playlistId);
   let playlist = await checkExistingPlaylistData(playlistId);
-  const { added, removed } = await checkForPlaylistDataUpdates(playlist);
+  const { added, removed } = await checkForPlaylistDataChanges(playlist);
   const updateNeeded = added.size + removed.size > 0;
   if (updateNeeded) {
     logTitle("Playlist changes detected");
@@ -411,21 +426,44 @@ export const YtdlPlaylistDownloader = async (playlistId: string) => {
   } else {
     logTitle("Done! No changes made to playlist data.");
   }
-  logTitle("                                               ");
 };
 
 const main = async () => {
   logTitle("YouTube Playlist Autosub Downloader");
+  const processedArgs: string[] = [];
 
-  const playlists = process.argv.slice(
-    process.argv.findIndex((arg) => arg === "--") + 1
+  const args = process.argv.slice(
+    process.argv.findIndex((a) => a === "--") + 1
   );
 
-  if (playlists.length === 0)
+  const threads = args.find((a) => a.includes("threads"));
+  if (threads) {
+    processedArgs.push(threads);
+    userThreads =
+      Math.max(1, Math.min(100, parseInt(threads.split("=")[1]))) ?? 12;
+    console.log("Threads set to", userThreads);
+  }
+
+  if (args.includes("update")) {
+    processedArgs.push("update");
+    await checkForUpdates();
+    return;
+  }
+
+  const playlists = args.filter((a) => !processedArgs.includes(a));
+
+  if (playlists.length === 0) {
     console.error(
-      "No playlists provided. Use the command like:\n\nnpm run ytdl [playlist_id/url] [playlist_id/url] etc.\n"
+      "\nNo new playlists provided. Use the command like:\n\nnpm run ytdl [playlist_id/url] [playlist_id/url] etc.\n"
     );
-  else {
+
+    console.log(
+      "You can also use --threads=[number] to specify the number of Ytdl processes to spawn\n"
+    );
+    console.log(
+      "or npm run ytdl --update to check updates to existing playlists as well as specified new ones if provided!\n"
+    );
+  } else {
     console.log("Found the following playlists to try download", playlists);
 
     for (const playlist of playlists) {
