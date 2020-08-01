@@ -13,19 +13,14 @@ with at least a couple months of dialogue.
 Using `youtube-dl`, playlist information is downloaded and auto-subtitle content for each video is pulled.
 Subtitle content is searched and explored using basic user interface built with React.
 
-### Playlist Page
-![](https://i.vgy.me/Y3vEDW.png)
-
-#### Exploring a Playlist's Subtitles
-![](https://i.vgy.me/wiXggL.png)
-
-#### Jumping Right to the Timestamp
-![](https://i.vgy.me/S9MmxB.png)
-
-
 ## Why is it?
 
-If you've ever wanted to quickly search for something that was said in a series of videos, or an entire channel, this is for you
+If you've ever wanted to quickly search for something that was said in a series of videos, or an entire channel, this is for you. Some use cases include:
+
+- Searching for concepts covered in tutorial series
+- Exploring ideas and concepts in debate/video essay style channels
+- Find that one thing someone said in a video, but you can't remember which one
+- Explore lore behind story-heavy channels
 
 # Installing & Running
 
@@ -38,6 +33,14 @@ If you've ever wanted to quickly search for something that was said in a series 
 5. `npm start` - Should open the UI in web browser!
 6. Spam `ctrl-c` to close I guess
 
+# Caveats - these are important
+1. You *must* provide a playlist. Even if you just want one video, wrap it in a playlist! 
+   1. YouTube does a lot with playlists. For example, clicking "Play all" on a channel uploads will give you a playlist link. This is how you index an entire channel.
+2. The subtitles are, in most cases, provided by YouTube's auto-captions, though it does download official ones if present!
+3. This tool does NO speech-to-text. All captions are from YouTube, so if the subtitles say one thing, but the video says another, that's not my fault
+4. This tool can make a LOT of requests to YouTube, which may result in YouTube temporarily restricting connections from your device - use it at your own discretion
+5. It's clunky and buggy, and is not an enterprise-ready™ solution. As such, a lot of the implemented QoL features like updating local playlists etc. emply naive solutions which may not work well. For example, if you index a video which does not have subtitles, but then has subtitles added to it, the tool won't be aware of this.
+6. If in doubt, delete the playlist and download it again!
 
 
 # To-Do:
@@ -61,3 +64,15 @@ If you've ever wanted to quickly search for something that was said in a series 
 1. ~Results page component~
 1. ~Result component~
 1. Video transcript explorer
+
+# Images
+
+### Playlist Page
+![](https://i.vgy.me/Y3vEDW.png)
+
+#### Exploring a Playlist's Subtitles
+![](https://i.vgy.me/wiXggL.png)
+
+#### Jumping Right to the Timestamp
+![](https://i.vgy.me/S9MmxB.png)
+
