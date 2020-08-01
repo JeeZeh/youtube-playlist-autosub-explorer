@@ -42,8 +42,13 @@ If you've ever wanted to quickly search for something that was said in a series 
 5. It's clunky and buggy, and is not an enterprise-ready™ solution. As such, a lot of the implemented QoL features like updating local playlists etc. emply naive solutions which may not work well. For example, if you index a video which does not have subtitles, but then has subtitles added to it, the tool won't be aware of this.
 6. If in doubt, delete the playlist and download it again!
 
-#### Potential rate limiting!
+## Some side-effects of over-using the tool
+
+#### Potential rate limiting
 <img src="https://i.vgy.me/upSb0O.png" width="450">
+
+#### YouTube blocking connections outside of browser
+<img src="https://i.vgy.me/aRqiSR.png" width="450">
 
 
 
