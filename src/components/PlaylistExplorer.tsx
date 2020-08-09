@@ -105,8 +105,13 @@ const PlaylistExplorer = ({
    * at 40, then we know subtitle 30 came from video 2 and it is the 10th subtitle.
    * @param playlist
    */
-  const buildIndex = (): { index: Index<string>; flatSubs: FlatSubs } => {
+  const buildIndex = (): {
+    index: Index<string>;
+    flatSubs: FlatSubs;
+  } | null => {
     let flatSubs: FlatSubs = { idList: [], subs: [], idRange: [] };
+    if (!playlist) return null;
+
     console.log("Building index");
 
     const index: Index<string> = FlexSearch.create({
@@ -132,24 +137,17 @@ const PlaylistExplorer = ({
     getPlaylist(playlistId).then((p) => {
       setPlaylist(p);
     });
-
-    return () => {
-      setPlaylist(null);
-    };
   }, []);
 
   useEffect(() => {
     if (playlist && !flexIndex) {
-      const { index, flatSubs } = buildIndex();
+      const builtIndex = buildIndex();
+      if (!builtIndex) return;
+      const { index, flatSubs } = builtIndex;
       setFlexIndex(index);
       setFlatSubs(flatSubs);
       index.search(" ").then(() => setLoaded(true));
     }
-
-    return () => {
-      setFlatSubs(null);
-      setFlexIndex(null);
-    };
   }, [playlist]);
 
   useEffect(() => {
@@ -201,9 +199,9 @@ const PlaylistExplorer = ({
 
   const renderRow = (props: ListChildComponentProps) => {
     const { index, style } = props;
+    if (!playlist || !flexResults) return <></>;
     const video = playlist.videos[flexResults[index].videoId];
-    if (!video) {
-      console.log("BROKE", flexResults[index].videoId);
+    if (!video || !style) {
       return <></>;
     }
     return (
@@ -218,16 +216,18 @@ const PlaylistExplorer = ({
 
   const FlexResults = () => {
     return (
-      <Paper variant="elevation">
-        <FixedSizeList
-          height={Math.min(800, flexResults.length * 80)}
-          width={750}
-          itemSize={80}
-          itemCount={flexResults.length}
-        >
-          {renderRow}
-        </FixedSizeList>
-      </Paper>
+      flexResults && (
+        <Paper variant="elevation">
+          <FixedSizeList
+            height={Math.min(800, flexResults.length * 80)}
+            width={750}
+            itemSize={80}
+            itemCount={flexResults.length}
+          >
+            {renderRow}
+          </FixedSizeList>
+        </Paper>
+      )
     );
   };
 

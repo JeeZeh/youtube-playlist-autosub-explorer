@@ -420,21 +420,29 @@ export const YtdlPlaylistDownloader = async (playlistId: string) => {
         JSON.stringify(playlist)
       );
       console.log("Done!");
+      return playlistId;
     } catch (error) {
       console.error("Error writing playlist data to file\n", error);
+      return;
     }
   } else {
     logTitle("Done! No changes made to playlist data.");
   }
+  return playlistId;
 };
 
 const main = async () => {
   logTitle("YouTube Playlist Autosub Downloader");
   const processedArgs: string[] = [];
 
-  const args = process.argv.slice(
-    process.argv.findIndex((a) => a === "--") + 1
-  );
+  const sliceIndex = process.argv.findIndex((a) => a === "--");
+
+  if (sliceIndex === -1) {
+    console.error("Program not launched using npm run ytdl!");
+    return;
+  }
+
+  const args = process.argv.slice(sliceIndex + 1);
 
   const threads = args.find((a) => a.includes("threads"));
   if (threads) {
@@ -474,4 +482,6 @@ const main = async () => {
   }
 };
 
-main();
+if (require.main === module) {
+  main();
+}

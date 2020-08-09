@@ -35,6 +35,8 @@ If you've ever wanted to quickly search for something that was said in a series 
 
 # Caveats - these are important
 
+> I **highly** recommend using a VPN to avoid being IP limited or banned.
+
 1. You _must_ provide a playlist. Even if you just want one video, wrap it in a playlist!
    1. YouTube does a lot with playlists. For example, clicking "Play all" on a channel uploads will give you a playlist link. This is how you index an entire channel.
 2. The subtitles are, in most cases, provided by YouTube's auto-captions, though it does download official ones if present!
@@ -65,7 +67,7 @@ If you've ever wanted to quickly search for something that was said in a series 
 1. ~Figure out how to efficiently search for text across millions of subtitle entries~ [FlexSearch](https://github.com/nextapps-de/flexsearch)
 1. ~Refresh playlist_data folder on changes so you don't need to keep restarting the UI~
 1. Include playlist title in Ytd
-1. Download playlists from UI
+1. ~Download playlists from UI~
 
 ### UI
 

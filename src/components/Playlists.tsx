@@ -109,6 +109,13 @@ export const Playlists = () => {
               {renderPlaylist(p)}
             </Grid>
           ))}
+        {playlists && playlists.length === 0 && (
+          <Typography variant="body2" color="textSecondary" align="center">
+            No playlists downloaded. <br />
+            Use <code>npm run ytdl [playlist] </code> from the directory, or
+            paste a playlist link or ID the download bar above!
+          </Typography>
+        )}
         {!playlists && <CircleLoader />}
       </Grid>
     </Grid>

@@ -1,17 +1,18 @@
+import { PlaylistJSON, YtdlPlaylistDownloader } from "./ytdl";
 import express from "express";
-import { PlaylistJSON } from "./ytdl";
 import * as fs from "fs";
 import humanizeDuration from "humanize-duration";
 import cors from "cors";
 import md5 from "object-hash";
 const app = express();
-const port = 8080; // default port to listen
+const port = 6060; // default port to listen
 const playlistDirectory = "./playlist_data";
 const playlists = new Map<string, PlaylistJSON>();
 const playlistHashes = new Map<string, string>();
 const playlistMetadata = new Map<string, PlaylistMetadata>();
+let ytdlSingleton = false;
 
-app.use(cors());
+app.use(cors(), express.static("dist", {}));
 
 const generateMetadata = async (playlistData: PlaylistJSON) => {
   if (Object.keys(playlistData.videos).length === 0) return false;
@@ -43,7 +44,7 @@ const initPlaylistData = async () => {
       fs.readFileSync(playlistDirectory + "/" + filename, "utf-8")
     );
     metadataPromise.push(generateMetadata(playlistData));
-    playlistHashes.set(filename, md5(playlistData.videos));
+    playlistHashes.set(filename.split(".json")[0], md5(playlistData.videos));
     playlists.set(filename.split(".json")[0], playlistData);
   }
   await Promise.all(metadataPromise);
@@ -75,9 +76,10 @@ const checkUpdates = async (id?: string) => {
     await Promise.all(readAsync);
     for (const file of playlistDir) {
       let data = readAsync.find((d) => file === d.id + ".json");
-
-      if (md5(data.videos) !== playlistHashes.get(file)) {
-        playlists.set(file, data);
+      const filename = file.split(".json")[0];
+      const hash = playlistHashes.get(filename);
+      if (!hash || md5(data.videos) !== hash) {
+        playlists.set(filename, data);
         toUpdate.push(data);
       }
     }
@@ -128,6 +130,40 @@ const initRoutes = async () => {
       return;
     }
     res.json(playlist);
+  });
+
+  app.post("/download", (req, res) => {
+    const id = req.query.id;
+    if (typeof id !== "string") {
+      res.status(400).send("Please provide a single ID string");
+      return;
+    }
+    if (ytdlSingleton)
+      return res.status(400).json({
+        success: false,
+        message: "Ytdl download already in progress",
+      });
+    ytdlSingleton = true;
+    YtdlPlaylistDownloader(id)
+      .then((playlistId) => {
+        if (playlistId) {
+          res.json({ success: true, message: playlistId });
+        } else {
+          res.status(500).json({
+            success: false,
+            message: "Downloading failed, check server output",
+          });
+        }
+      })
+      .catch((e) => {
+        console.error(e);
+        res.status(500).json({
+          success: false,
+          message: "Downloading failed, check server output",
+          error: e,
+        });
+      })
+      .finally(() => (ytdlSingleton = false));
   });
 };
 
