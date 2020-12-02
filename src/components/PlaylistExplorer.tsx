@@ -215,6 +215,7 @@ const PlaylistExplorer = ({
   };
 
   const FlexResults = () => {
+    if (!flexResults) return <></>;
     return (
       flexResults && (
         <Paper variant="elevation">
