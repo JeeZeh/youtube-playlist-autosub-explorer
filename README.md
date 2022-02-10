@@ -1,3 +1,5 @@
+![](https://github.com/JeeZeh/youtube-playlist-autosub-explorer/blob/master/YouTube%20Autosub%20Explorer.png)
+
 # YouTube Playlist Autosub Explorer
 
 ## What is it?
