@@ -1,4 +1,4 @@
-![](https://github.com/JeeZeh/youtube-playlist-autosub-explorer/blob/master/YouTube%20Autosub%20Explorer.png)
+![](https://github.com/JeeZeh/youtube-playlist-autosub-explorer/blob/master/YouTube%20Playlist%20Autosub%20Explorer.png)
 
 # YouTube Playlist Autosub Explorer
 
